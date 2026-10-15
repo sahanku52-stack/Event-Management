@@ -41,3 +41,4 @@ CREATE TABLE IF NOT EXISTS activity_log (
  INDEX idx_activity_created(created_at)
 ) ENGINE=InnoDB;
 INSERT IGNORE INTO settings(setting_key,setting_value) VALUES ('site_name','EventX'),('contact_email','hello@eventx.local'),('allow_registration','true'),('require_event_approval','true');
+UPDATE settings SET setting_value='EventX' WHERE setting_key='site_name' AND setting_value='Gatherly';
