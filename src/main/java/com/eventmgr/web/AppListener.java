@@ -1,0 +1,3 @@
+package com.eventmgr.web;
+import com.eventmgr.util.Db;import org.mindrot.jbcrypt.BCrypt;import javax.servlet.*;import javax.servlet.annotation.WebListener;
+@WebListener public class AppListener implements ServletContextListener {public void contextInitialized(ServletContextEvent e){try{if(Db.count("SELECT COUNT(*) FROM users WHERE role='ADMIN'")==0)Db.insert("INSERT INTO users(name,email,password_hash,role) VALUES(?,?,?,'ADMIN')","Administrator","admin@eventmgr.local",BCrypt.hashpw("Admin@123",BCrypt.gensalt()));}catch(Exception x){e.getServletContext().log("Could not seed admin. Run jm migrate and configure db.properties.",x);}}}
