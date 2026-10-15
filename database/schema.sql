@@ -40,4 +40,4 @@ CREATE TABLE IF NOT EXISTS activity_log (
  CONSTRAINT fk_activity_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
  INDEX idx_activity_created(created_at)
 ) ENGINE=InnoDB;
-INSERT IGNORE INTO settings(setting_key,setting_value) VALUES ('site_name','Gatherly'),('contact_email','hello@gatherly.local'),('allow_registration','true'),('require_event_approval','true');
+INSERT IGNORE INTO settings(setting_key,setting_value) VALUES ('site_name','EventX'),('contact_email','hello@eventx.local'),('allow_registration','true'),('require_event_approval','true');
