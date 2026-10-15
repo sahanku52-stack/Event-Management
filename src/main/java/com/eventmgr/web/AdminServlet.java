@@ -1,5 +1,21 @@
 package com.eventmgr.web;
-import com.eventmgr.util.*;import com.google.gson.JsonObject;import javax.servlet.annotation.WebServlet;import javax.servlet.http.*;import java.io.*;import java.util.*;import org.mindrot.jbcrypt.BCrypt;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
+
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.mindrot.jbcrypt.BCrypt;
+
+import com.eventmgr.util.Activity;
+import com.eventmgr.util.ApiError;
+import com.eventmgr.util.ApiServlet;
+import com.eventmgr.util.Db;
+import com.eventmgr.util.Settings;
+import com.eventmgr.util.User;
+import com.google.gson.JsonObject;
 @WebServlet("/api/admin/*") public class AdminServlet extends ApiServlet {
  protected void doGet(HttpServletRequest q,HttpServletResponse r)throws IOException{String[] s=segs(q);String k=s.length>0?s[0]:"";if(k.equals("users"))send(r,200,Db.query("SELECT id,name,email,role,status,created_at FROM users ORDER BY created_at DESC"));else if(k.equals("events"))send(r,200,Db.query("SELECT e.*,u.name organizer_name,(SELECT COUNT(*) FROM registrations x WHERE x.event_id=e.id AND x.status<>'CANCELLED') registrations,(SELECT COALESCE(SUM(x.total),0) FROM registrations x WHERE x.event_id=e.id AND x.status<>'CANCELLED') revenue FROM events e JOIN users u ON u.id=e.organizer_id ORDER BY FIELD(e.status,'PENDING','APPROVED','REJECTED'),e.event_date"));else if(k.equals("activity"))send(r,200,Db.query("SELECT a.action,a.detail,a.created_at,u.name actor_name FROM activity_log a LEFT JOIN users u ON u.id=a.user_id ORDER BY a.created_at DESC LIMIT 8"));else if(k.equals("stats"))send(r,200,Map.of("events",Db.count("SELECT COUNT(*) FROM events"),"pending",Db.count("SELECT COUNT(*) FROM events WHERE status='PENDING'"),"users",Db.count("SELECT COUNT(*) FROM users"),"registrations",Db.count("SELECT COUNT(*) FROM registrations WHERE status<>'CANCELLED'"),"revenue",Db.one("SELECT COALESCE(SUM(total),0) revenue FROM registrations WHERE status<>'CANCELLED'").get("revenue"),"recent",Db.query("SELECT e.title,e.status,e.event_date,u.name organizer_name FROM events e JOIN users u ON u.id=e.organizer_id ORDER BY e.created_at DESC LIMIT 6")));else if(k.equals("settings"))send(r,200,Map.of("siteName",Settings.get("site_name","EventX"),"contactEmail",Settings.get("contact_email","hello@eventx.local"),"allowRegistration",Settings.bool("allow_registration",true),"requireApproval",Settings.bool("require_event_approval",true)));else throw new ApiError(404,"Not found");}
  protected void doPost(HttpServletRequest q,HttpServletResponse r)throws IOException{User actor=me(q);String[] s=segs(q);if(s.length==2&&s[0].equals("events")){JsonObject b=body(q);String status=str(b,"status",true);if(!Set.of("APPROVED","REJECTED","PENDING").contains(status))throw new ApiError(400,"Invalid event status");long eid=id(s[1]);Map<String,Object> event=Db.one("SELECT title FROM events WHERE id=?",eid);if(event==null)throw new ApiError(404,"Event not found");Db.update("UPDATE events SET status=? WHERE id=?",status,eid);Activity.log(actor.id,"Event "+status.toLowerCase(),(String)event.get("title")+" was "+status.toLowerCase());message(r,200,"Event status updated");return;}if(s.length==1&&s[0].equals("users")){JsonObject b=body(q);String name=str(b,"name",true),email=str(b,"email",true).toLowerCase(),role=str(b,"role",true),password=str(b,"password",true);if(!Set.of("ADMIN","ORGANIZER","ATTENDEE").contains(role)||password.length()<6)throw new ApiError(400,"Choose a valid role and password of at least 6 characters");Db.insert("INSERT INTO users(name,email,password_hash,role) VALUES(?,?,?,?)",name,email,BCrypt.hashpw(password,BCrypt.gensalt()),role);Activity.log(actor.id,"User created",name+" added as "+role.toLowerCase());message(r,201,"User created");return;}throw new ApiError(404,"Not found");}
